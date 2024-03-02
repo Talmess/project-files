@@ -300,13 +300,13 @@ summary(final_model_random)
 #   temperature:radiation  0.15974    0.06675   2.393 0.016703 *  
 #   humidity:speed         0.14606    0.07826   1.866 0.062002 .  
 # ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#   Signif. codes:  0 ?***? 0.001 ?**? 0.01 ?*? 0.05 ?.? 0.1 ? ? 1
 # 
 # Zero-inflation model:
 #   Estimate Std. Error z value Pr(>|z|)    
 # (Intercept)  -1.8500     0.2151  -8.599   <2e-16 ***
 #   ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#   Signif. codes:  0 ?***? 0.001 ?**? 0.01 ?*? 0.05 ?.? 0.1 ? ? 1
 
 library(rcompanion)
 res <- residuals(final_model_random, type = "pearson")
@@ -331,3 +331,32 @@ mean(res)
 
 # [1] -0.0005158676
 
+min_temperature <- ceiling(min(rel_df$temperature))
+max_temperature <- floor(max(rel_df$temperature))
+
+temperature <- seq(min_temperature, max_temperature, 1)
+
+min_radiation <- ceiling(min(rel_df$radiation))
+max_radiation <- floor(max(rel_df$radiation))
+
+radiation <- seq(min_radiation, max_radiation, 50)
+
+radiation_temperature_df <- expand.grid(radiation = radiation, temperature = temperature)
+
+b_intercept <- -1.83
+b_radiation <- -0.17487
+b_temperature <- 0.4
+b_interaction <- -0.16
+
+radiation_temperature_df <- radiation_temperature_df %>%
+  mutate(normal_radiation = (radiation - mean_radiation) / sd_radiation,
+         normal_temperature = (temperature - mean_temperature) / sd_temperature) %>%
+  mutate(right_side = exp(b_intercept) * exp(b_radiation* normal_radiation) *
+           exp(b_temperature * normal_temperature) * exp(b_interaction * normal_radiation * normal_temperature)) %>%
+  mutate(bad_probability = right_side / (1 + right_side))
+
+ggplot(radiation_temperature_df, aes(x = radiation, y = temperature, fill = bad_probability)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +  # Customize color scale
+  labs(x = "radiation", y = "temperature", fill = "bad_probability") +
+  theme_minimal()  # Customize the plot theme
